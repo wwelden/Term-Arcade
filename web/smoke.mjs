@@ -2,6 +2,7 @@
 // game in Chromium and checks what lands in the terminal.
 //
 //   bash web/build.sh && node web/smoke.mjs
+//   SMOKE_URL=https://term-arcade.vercel.app/ node web/smoke.mjs
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
@@ -26,7 +27,8 @@ const server = createServer(async (req, res) => {
   }
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const url = `http://127.0.0.1:${server.address().port}/`;
+// SMOKE_URL tests a deployment instead, e.g. https://term-arcade.vercel.app/
+const url = process.env.SMOKE_URL || `http://127.0.0.1:${server.address().port}/`;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1100, height: 800 } });
