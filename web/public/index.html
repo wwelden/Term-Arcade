@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Term Arcade</title>
+  <meta name="description" content="Terminal games written in Go, compiled unmodified to WebAssembly and running in a browser terminal.">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>term-arcade</h1>
+      <p>Terminal games written in Go, compiled unmodified to WebAssembly and
+         running in the terminal below.</p>
+      <nav aria-label="Games">
+        <button data-cmd="tetris">tetris</button>
+        <button data-cmd="wordle">wordle</button>
+        <button data-cmd="connect4">connect4</button>
+        <a href="https://github.com/wwelden/Term-Arcade" target="_blank" rel="noopener">source ↗</a>
+      </nav>
+    </header>
+
+    <div id="terminal" aria-label="Terminal"></div>
+
+    <div id="touch-keys" aria-label="On-screen keys"></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-unicode11@0.8.0/lib/addon-unicode11.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

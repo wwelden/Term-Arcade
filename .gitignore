@@ -1,0 +1,12 @@
+# Build output (made by web/build.sh, locally and on Vercel)
+web/public/games/
+web/public/wasm_exec.js
+.games/
+.go/
+
+# Smoke test
+node_modules/
+web/smoke*.png
+
+.vercel
+.DS_Store
