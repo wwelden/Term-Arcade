@@ -12,7 +12,7 @@ GO_MIN_MINOR=25 # highest `go` directive among the games is 1.25
 
 # name | repository | commit
 GAMES="
-tetris   https://github.com/wwelden/TermTetris   18a88a117c4bde82fc1e8c1fed825f961ed0e071
+tetris   https://github.com/wwelden/TermTetris   e27cf937db578dbd2f01a69b54f78e751148f12d
 wordle   https://github.com/wwelden/TermWordle   3e450f1e4b6c83b9fa33c7a5c15af780f82ef8dd
 connect4 https://github.com/wwelden/TermConnect4 f5a4d397b8a392d50609e428b14d4a16f1dfdc5d
 "

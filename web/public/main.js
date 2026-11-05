@@ -32,8 +32,8 @@
   // columns, as in a real terminal, so the boards line up.
   term.loadAddon(new Unicode11Addon.Unicode11Addon());
   term.unicode.activeVersion = "11";
-  term.open(document.getElementById("terminal"));
-  fit.fit();
+  const termEl = document.getElementById("terminal");
+  term.open(termEl);
   window.term = term; // for web/smoke.mjs, and the curious
 
   // ----------------------------------------------------------------- games
@@ -42,6 +42,8 @@
   const GAMES = {
     tetris: {
       input: "raw",
+      // The board is 24 columns, but the score/controls line above it is 68.
+      size: { cols: 68, rows: 24 },
       repo: "https://github.com/wwelden/TermTetris",
       about: "falling blocks — ←/→ or a/d move, ↑ or w rotates, ↓ or s drops, q quits",
       // Arrow keys arrive as escape sequences; the game reads single bytes.
@@ -50,6 +52,7 @@
     },
     wordle: {
       input: "line",
+      size: { cols: 50, rows: 20 },
       repo: "https://github.com/wwelden/TermWordle",
       about: "guess the word in six, then watch the solver AI take the same word",
       usage: "wordle [-mode vs|player|ai]",
@@ -57,11 +60,67 @@
     },
     connect4: {
       input: "line",
+      size: { cols: 30, rows: 14 },
       repo: "https://github.com/wwelden/TermConnect4",
       about: "connect four against a computer opponent — type a column and press Enter",
       touch: ["1", "2", "3", "4", "5", "6", "7", "8"].map((n) => [n, n + "\r"]),
     },
   };
+
+  // ----------------------------------------------------------------- layout
+
+  // The games draw fixed-size screens, so instead of a fixed font that leaves
+  // a small board in the corner, pick the largest font at which the current
+  // program's screen fits, then shrink the terminal box to that width so it
+  // sits centered on the page.
+  const SHELL_SIZE = { cols: 90, rows: 24 }; // `help` lines run to ~86 columns
+  const FONT_MIN = 10;
+  const FONT_MAX = 34;
+
+  function layout() {
+    const want = current ? current.game.size : SHELL_SIZE;
+    termEl.style.maxWidth = "";
+    termEl.style.maxHeight = "";
+
+    // Largest font that still gives at least want.cols x want.rows.
+    let lo = FONT_MIN;
+    let hi = FONT_MAX;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      term.options.fontSize = mid;
+      const dims = fit.proposeDimensions();
+      if (dims && dims.cols >= want.cols && dims.rows >= want.rows) lo = mid;
+      else hi = mid - 1;
+    }
+    term.options.fontSize = lo;
+    fit.fit();
+
+    // Drop the spare rows and columns so the box hugs the screen it is
+    // showing (CSS centers it). On a narrow phone the minimum font may not
+    // fit; then just use what there is.
+    const screen = termEl.querySelector(".xterm-screen");
+    const cellWidth = screen.offsetWidth / term.cols;
+    const cellHeight = screen.offsetHeight / term.rows;
+    const spareCols = term.cols - want.cols;
+    const spareRows = term.rows - want.rows;
+    if (spareCols > 0 && cellWidth > 0) {
+      termEl.style.maxWidth = Math.ceil(termEl.offsetWidth - spareCols * cellWidth + cellWidth / 2) + "px";
+    }
+    if (spareRows > 0 && cellHeight > 0) {
+      termEl.style.maxHeight = Math.ceil(termEl.offsetHeight - spareRows * cellHeight + cellHeight / 2) + "px";
+    }
+    if (spareCols > 0 || spareRows > 0) fit.fit();
+  }
+
+  let layoutQueued = false;
+  function queueLayout() {
+    if (layoutQueued) return;
+    layoutQueued = true;
+    requestAnimationFrame(() => {
+      layoutQueued = false;
+      layout();
+    });
+  }
 
   // ------------------------------------------------------------ the game
 
@@ -100,6 +159,7 @@
     current = null;
     setTouchKeys(null);
     setActiveButton(null);
+    layout();
     // Undo whatever state the game left the terminal in.
     term.write("\x1b[0m\x1b[?25h");
     if (note) term.write("\r\n\x1b[2m[" + name + " " + note + "]\x1b[0m");
@@ -110,13 +170,13 @@
   function runGame(name, args) {
     if (current) stopGame("stopped");
     const game = GAMES[name];
-    term.clear();
-    term.write("\x1b[2mloading " + name + "...\x1b[0m");
-
     const worker = new Worker("worker.js");
     current = { name, game, worker, line: "" };
     setTouchKeys(game);
     setActiveButton(name);
+    layout(); // size the terminal for this game before it draws anything
+    term.clear();
+    term.write("\x1b[2mloading " + name + "...\x1b[0m");
 
     worker.onmessage = (e) => {
       if (!current || current.worker !== worker) return;
@@ -284,8 +344,8 @@
   }
 
   term.onData(onData);
-  window.addEventListener("resize", () => fit.fit());
-  new ResizeObserver(() => fit.fit()).observe(document.getElementById("terminal"));
+  // Not a ResizeObserver on the terminal: layout() itself resizes it.
+  window.addEventListener("resize", queueLayout);
 
   document.querySelectorAll("nav button[data-cmd]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -298,6 +358,7 @@
 
   // ------------------------------------------------------------------- boot
 
+  layout();
   term.writeln("\x1b[1;32m+-------------+\r\n| term-arcade |\r\n+-------------+\x1b[0m");
   term.writeln("");
   term.writeln("Go terminal games, compiled to WebAssembly. Type \x1b[32mhelp\x1b[0m, or try \x1b[32mtetris\x1b[0m.");

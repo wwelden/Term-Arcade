@@ -71,19 +71,42 @@ async function check(name, fn) {
 
 await page.goto(url);
 await check("shell boots", () => waitFor("prompt", contains("guest@term-arcade")));
+await shot("shell");
+
+// The terminal scales its font so each program's screen fills the page.
+const termSize = () => page.evaluate(() => ({
+  font: window.term.options.fontSize, cols: window.term.cols, rows: window.term.rows,
+}));
+async function expectSize(name, minCols, minRows) {
+  const s = await termSize();
+  if (s.cols < minCols || s.rows < minRows) {
+    throw new Error(`${name}: terminal is ${s.cols}x${s.rows}, needs ${minCols}x${minRows}`);
+  }
+  if (s.font <= 15) throw new Error(`${name}: font is ${s.font}px, expected it to scale up`);
+}
 
 await check("tetris runs, moves, and quits", async () => {
   await page.click('nav button[data-cmd="tetris"]');
   await waitFor("score line", contains("Score: 0"));
+  await expectSize("tetris", 68, 24);
   // Emoji must be two columns wide or the board falls apart: each board row
-  // is wall + 10 cells + wall = 24 columns, the last cell is the wall "[]".
+  // is wall + 10 cells + wall = 24 columns. Measure the floor (the last row
+  // made only of wall blocks) in terminal columns, not string length.
   const width = await page.evaluate(() => {
     const buf = window.term.buffer.active;
+    let floor = -1;
     for (let y = 0; y < buf.length; y++) {
       const s = buf.getLine(y).translateToString(true);
-      if (s.startsWith("[][][]")) return s.length; // the floor
+      if (s.length >= 3 && /^(⬜|\[\])+$/u.test(s)) floor = y;
     }
-    return -1;
+    if (floor < 0) return -1;
+    const line = buf.getLine(floor);
+    let end = 0;
+    for (let x = 0; x < line.length; x++) {
+      const cell = line.getCell(x);
+      if (cell.getChars()) end = x + cell.getWidth();
+    }
+    return end;
   });
   if (width !== 24) throw new Error(`floor row is ${width} columns, expected 24`);
   await page.keyboard.press("ArrowLeft");
@@ -98,6 +121,7 @@ await check("tetris runs, moves, and quits", async () => {
 await check("wordle takes a guess", async () => {
   await type("wordle -mode player\r");
   await waitFor("banner", contains("-----------------------------------"));
+  await expectSize("wordle", 50, 20);
   // The game rewrites each echoed guess in color, upper-cased. Three guesses
   // cover 15 different letters, so at least one is all but certain to score.
   for (const guess of ["crane", "split", "mouth"]) {
@@ -124,6 +148,7 @@ await check("wordle takes a guess", async () => {
 await check("connect4 plays a move", async () => {
   await page.click('nav button[data-cmd="connect4"]');
   await waitFor("board", contains(" 1  2  3  4  5  6  7  8"));
+  await expectSize("connect4", 30, 14);
   await type("4\r");
   // Our red chip plus the computer's yellow reply.
   await waitFor("both moves", (t) => t.includes("🔴") && t.includes("🟡"));
@@ -140,6 +165,13 @@ await check("switching games stops the current one", async () => {
 await check("no page errors", async () => {
   if (errors.length) throw new Error(errors.join("\n"));
 });
+
+// Phone-sized look, for the screenshots only: the minimum font may not fit
+// every screen there, which is fine.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.click('nav button[data-cmd="connect4"]');
+await waitFor("board", contains(" 1  2  3  4  5  6  7  8"));
+await shot("phone-connect4");
 
 await browser.close();
 server.close();
