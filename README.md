@@ -1,3 +1,5 @@
+<img src="web/public/favicon.svg" width="64" height="64" alt="">
+
 # Term Arcade
 
 Three terminal games I wrote in Go, playable in the browser. Each game is
